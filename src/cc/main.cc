@@ -83,6 +83,20 @@ void readFromCSV(ifstream& ifs, vector<vector<double>>& data) {
 		data.push_back(tmp);
 	}
 }
+
+// read a database file
+void readFromCSV(ifstream& ifs, vector<vector<double>>& data, int dim_limit) {
+	string line;
+	while (getline(ifs, line)) {
+		stringstream lineStream(line);
+		string cell;
+		vector<double> tmp;
+		while (getline(lineStream, cell, ',') && tmp.size() <= dim_limit) {
+			tmp.push_back(stod(cell));
+		}
+		data.push_back(tmp);
+	}
+}
 void readClassFromCSV(ifstream& ifs, vector<Int>& cl) {
 	string line;
 	while (getline(ifs, line)) {
@@ -207,7 +221,7 @@ double kl_max_fast(double freq, Int N0, Int N) {
 				+ (1 - freq) * log(1 / (1 - r0));
 }
 double kl(vector<double>& freq_current, vector<Int>& cl, double freq, Int N0,
-		Int N) {
+Int N) {
 	double r0 = (double) N0 / (double) N;
 	double r1 = (double) (N - N0) / (double) N;
 	double freq0 = 0.0;
@@ -281,7 +295,24 @@ void runFPM(vector<vector<double>>& rankn, vector<Int>& fset,
 		fset.pop_back();
 	}
 }
-// Significant Pattern Mining
+
+
+/**
+ * Significant Pattern Mining for continuous variables
+ * Depth-first search with recursive call.
+ *
+ * Arguments
+ *	rankn			: Nxn dataset.
+ *	fset           	: current pattern
+ *	freq_current	: vector of frequencies for transactions
+ *	i_prev			: iterator for branch (dfs)
+ *	n				: number of types (items)
+ *	size_limit		: INT_MAX is put -- I guess it is for debugging.
+ *	ofs				: ???
+ *	N0 				: number of transactions with class negative (fixed)
+ *	freq_pval_list 	: list of testable pattern currently hold. pair<frequency, p-value>
+ *	alpha			: error rate (fixed)
+ */
 void runSPM(vector<vector<double>>& rankn, vector<Int>& fset,
 		vector<double>& freq_current, Int i_prev, Int n, Int size_limit,
 		ofstream& ofs, Int N0, set<pair<double, double>, cmp>& freq_pval_list,
@@ -321,6 +352,8 @@ void runSPM(vector<vector<double>>& rankn, vector<Int>& fset,
 					freq_pval_list, alpha);
 		}
 		// extract the feature fset.back();
+		// TODO: this is the part it takes the most time.
+		// ok DFS is better than BrFS i guess.
 		for (Int i = 0; i < N; ++i) {
 			freq_current[i] /= (double) rankn[i][fset.back()];
 		}
@@ -438,9 +471,11 @@ int main(int argc, char *argv[]) {
 	double alpha = 0.05;
 	clock_t ts, te;
 
+	Int dim_limit = INT32_MAX;
+
 	// get arguments
 	char opt;
-	while ((opt = getopt(argc, argv, "i:c:o:t:s:a:k:fvwp:b")) != -1) {
+	while ((opt = getopt(argc, argv, "i:c:o:t:s:a:k:fvwp:bd:")) != -1) {
 		switch (opt) {
 		case 'i':
 			input_file = optarg;
@@ -482,6 +517,9 @@ int main(int argc, char *argv[]) {
 		case 'b':
 			bonferroni = true;
 			break;
+		case 'd':
+			dim_limit = atoi(optarg);
+			break;
 		}
 	}
 
@@ -505,7 +543,7 @@ int main(int argc, char *argv[]) {
 	ifstream ifs(input_file);
 	vector<vector<double>> data;
 	vector<Int> cl;
-	readFromCSV(ifs, data);
+	readFromCSV(ifs, data, dim_limit);
 	cout << "end" << endl << flush;
 	sfst << "end" << endl;
 	Int N = data.size();
