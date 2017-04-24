@@ -271,7 +271,7 @@ double computePvalue(double kl, Int N) {
 	if (kl <= pow(10, -8))
 		pval = 1.0;
 	else
-		pval = 1 - boost::math::cdf(chisq_dist, 2 * (double) N * kl);
+		pval = 1.0 - boost::math::cdf(chisq_dist, 2.0 * (double) N * kl);
 	return pval;
 }
 // compute a list of thresholds
