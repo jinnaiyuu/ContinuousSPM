@@ -7,33 +7,35 @@ run.script <- function(N = 200, n = 20, r0 = 0.5, data.name = "material", base.d
   results <- matrix(rep(NA, 3 * 5), ncol = 3)
   rownames(results) <- c("#testable patterns", "Runtime", "Final freq. thr.", "Precision", "Recall")
   colnames(results) <- c("Proposal", "Bonferroni", "Median-bin")
-#  real.data.list <- c("ctg", "faults", "ionosphere", "segment", "waveform", "wdbc")
+  real.data.list <- c("ctg", "faults", "ionosphere", "segment", "waveform", "wdbc")
 #  real.data.list <- c("material") # YuuJinnai
   
   file.path.data <- paste0(base.dir, data.name, ".data")
   file.path.class <- paste0(base.dir, data.name, ".class")
 
-  cat(" Using material data")
-#  data.name <- "material"
-  
-  # if (data.name == "synth") {
-  #   ## make a synthetic dataset with (N, n, r0)
-  #   cat("  > Generate synthetic data\n")
-  #   data.name <- paste0(data.name, "_N=", N, "_n=", n, "_r0=", r0, "_alpha=", alpha)
-  #   generate.data(file.path.data, N, n)
-  #   generate.class(file.path.class, N, r0)
-  # } else if (data.name %in% real.data.list) {
-  #   command <- paste0("real.data <- ", data.name, "(base.dir)")
-  #   eval(parse(text = command))
-  #   write.table(real.data$data, file = file.path.data, sep = ",", row.names = FALSE, col.names = FALSE)
-  #   write.table(real.data$class, file = file.path.class, sep = ",", row.names = FALSE, col.names = FALSE)
-  # } else {
-  #   cat("ERROR: please specify a valid data name from:\n")
-  #   cat("{synth, ")
-  #   cat(real.data.list, sep = ", ")
-  #   cat("}\n")
-  #   return()
-  # }
+
+  if (data.name == "primary") {
+    cat(" Using material data")
+    data.name <- "primary"
+    
+  } else if (data.name == "synth") {
+     ## make a synthetic dataset with (N, n, r0)
+     cat("  > Generate synthetic data\n")
+     data.name <- paste0(data.name, "_N=", N, "_n=", n, "_r0=", r0, "_alpha=", alpha)
+     generate.data(file.path.data, N, n)
+     generate.class(file.path.class, N, r0)
+   } else if (data.name %in% real.data.list) {
+     command <- paste0("real.data <- ", data.name, "(base.dir)")
+     eval(parse(text = command))
+     write.table(real.data$data, file = file.path.data, sep = ",", row.names = FALSE, col.names = FALSE)
+     write.table(real.data$class, file = file.path.class, sep = ",", row.names = FALSE, col.names = FALSE)
+   } else {
+     cat("ERROR: please specify a valid data name from:\n")
+     cat("{synth, ")
+     cat(real.data.list, sep = ", ")
+     cat("}\n")
+     return()
+   }
   
   if (genonly){
     return()
@@ -223,7 +225,7 @@ ctg <- function(base.dir) {
   }
 
   X <- read.table(file.path.original, sep = ",", header = TRUE)
-  data <- X[, 1:(ncol(X) - 1)]
+  data <- X[, 7:(7+21)]
   data <- imputation(data)
   cl <- X[, ncol(X)]
   cl <- unlist(cl)

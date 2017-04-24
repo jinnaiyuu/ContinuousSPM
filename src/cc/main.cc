@@ -85,7 +85,8 @@ void readFromCSV(ifstream& ifs, vector<vector<double>>& data) {
 }
 
 // read a database file
-void readFromCSV(ifstream& ifs, vector<vector<double>>& data, int dim_limit) {
+void readFromCSV(ifstream& ifs, vector<vector<double>>& data, int dim_limit,
+bool reverse) {
 	string line;
 	while (getline(ifs, line)) {
 		stringstream lineStream(line);
@@ -94,9 +95,17 @@ void readFromCSV(ifstream& ifs, vector<vector<double>>& data, int dim_limit) {
 		while (getline(lineStream, cell, ',') && tmp.size() <= dim_limit) {
 			tmp.push_back(stod(cell));
 		}
+		// YJ: Add reversed (negated) values for all features so that the method can detect negative correlation.
+		if (reverse) {
+			int size = tmp.size();
+			for (int i = 0; i < size; ++i) {
+				tmp.push_back(-tmp[i]);
+			}
+		}
 		data.push_back(tmp);
 	}
 }
+
 void readClassFromCSV(ifstream& ifs, vector<Int>& cl) {
 	string line;
 	while (getline(ifs, line)) {
@@ -209,17 +218,19 @@ double kl_max(vector<double>& freq_current, Int N0, Int N) {
 	}
 	return kl;
 }
+
 double kl_max_fast(double freq, Int N0, Int N) {
 	double r0 = (double) N0 / (double) N;
 	if (freq < r0)
-		return freq * log(1 / r0)
+		return freq * log(1.0 / r0)
 				+ (r0 - freq) * log((r0 - freq) / (r0 - r0 * freq))
-				+ (1 - r0) * log(1 / (1 - freq));
+				+ (1.0 - r0) * log(1.0 / (1.0 - freq));
 	else
-		return r0 * log(1 / freq)
+		return r0 * log(1.0 / freq)
 				+ (freq - r0) * log((freq - r0) / (freq - freq * r0))
-				+ (1 - freq) * log(1 / (1 - r0));
+				+ (1.0 - freq) * log(1.0 / (1.0 - r0));
 }
+
 double kl(vector<double>& freq_current, vector<Int>& cl, double freq, Int N0,
 Int N) {
 	double r0 = (double) N0 / (double) N;
@@ -295,7 +306,6 @@ void runFPM(vector<vector<double>>& rankn, vector<Int>& fset,
 		fset.pop_back();
 	}
 }
-
 
 /**
  * Significant Pattern Mining for continuous variables
@@ -473,9 +483,12 @@ int main(int argc, char *argv[]) {
 
 	Int dim_limit = INT32_MAX;
 
+	// YJ: In order to detect negative correlation, current method needs to add revered rank.
+	bool reverse = false;
+
 	// get arguments
 	char opt;
-	while ((opt = getopt(argc, argv, "i:c:o:t:s:a:k:fvwp:bd:")) != -1) {
+	while ((opt = getopt(argc, argv, "i:c:o:t:s:a:k:fvwp:bd:r")) != -1) {
 		switch (opt) {
 		case 'i':
 			input_file = optarg;
@@ -520,6 +533,9 @@ int main(int argc, char *argv[]) {
 		case 'd':
 			dim_limit = atoi(optarg);
 			break;
+		case 'r':
+			reverse = true;
+			break;
 		}
 	}
 
@@ -543,7 +559,7 @@ int main(int argc, char *argv[]) {
 	ifstream ifs(input_file);
 	vector<vector<double>> data;
 	vector<Int> cl;
-	readFromCSV(ifs, data, dim_limit);
+	readFromCSV(ifs, data, dim_limit, reverse);
 	cout << "end" << endl << flush;
 	sfst << "end" << endl;
 	Int N = data.size();
