@@ -85,14 +85,16 @@ void readFromCSV(ifstream& ifs, vector<vector<double>>& data) {
 }
 
 // read a database file
-void readFromCSV(ifstream& ifs, vector<vector<double>>& data, int dim_limit,
-bool reverse) {
+void readFromCSV(ifstream& ifs, vector<vector<double>>& data,
+		int dim_limit,
+		bool reverse) {
 	string line;
 	while (getline(ifs, line)) {
 		stringstream lineStream(line);
 		string cell;
 		vector<double> tmp;
-		while (getline(lineStream, cell, ',') && tmp.size() <= dim_limit) {
+		while (getline(lineStream, cell, ',')
+				&& tmp.size() <= dim_limit) {
 			tmp.push_back(stod(cell));
 		}
 		// YJ: Add reversed (negated) values for all features so that the method can detect negative correlation.
@@ -165,7 +167,8 @@ double eta_min(Int k, Int N, Int N_class) {
 	}
 	// current value
 	vector<double> v;
-	copy(ascending_order.begin(), ascending_order.end(), back_inserter(v));
+	copy(ascending_order.begin(), ascending_order.end(),
+			back_inserter(v));
 
 	for (Int j = 0; j < k - 1; ++j) {
 		sort(v.begin(), v.end(), greater<double>());
@@ -181,7 +184,8 @@ double eta_min(Int k, Int N, Int N_class) {
 double eta_max_0(vector<double>& freq_current, Int N0, Int N) {
 	vector<double> v;
 	copy(freq_current.begin(), freq_current.end(), back_inserter(v));
-	partial_sort(v.begin(), v.begin() + N0, v.end(), greater<double>());
+	partial_sort(v.begin(), v.begin() + N0, v.end(),
+			greater<double>());
 	double freq0 = accumulate(v.begin(), v.begin() + N0, 0.0);
 	freq0 /= (double) N;
 	return freq0;
@@ -193,7 +197,8 @@ double kl_max(vector<double>& freq_current, Int N0, Int N) {
 	double r0 = (double) N0 / (double) N;
 	double r1 = (double) (N - N0) / (double) N;
 	double freq0 = eta_max_0(freq_current, N0, N);
-	double freq = accumulate(freq_current.begin(), freq_current.end(), 0.0);
+	double freq = accumulate(freq_current.begin(), freq_current.end(),
+			0.0);
 	freq /= (double) N;
 
 	// cout << endl << "freq =  " << freq << endl;
@@ -219,19 +224,43 @@ double kl_max(vector<double>& freq_current, Int N0, Int N) {
 	return kl;
 }
 
-double kl_max_fast(double freq, Int N0, Int N) {
+double kl_max_fast_upper(double freq, Int N0, Int N) {
+	assert(0 <= freq && freq <= 1);
+	assert(0 <= N0 && N0 <= N);
 	double r0 = (double) N0 / (double) N;
-	if (freq < r0)
-		return freq * log(1.0 / r0)
+	if (freq < r0) {
+		double r = freq * log(1.0 / r0)
 				+ (r0 - freq) * log((r0 - freq) / (r0 - r0 * freq))
 				+ (1.0 - r0) * log(1.0 / (1.0 - freq));
-	else
-		return r0 * log(1.0 / freq)
+		assert(0.0 <= r);
+		return r;
+	} else {
+		double r = r0 * log(1 / r0) + (1 - r0) * log(1 / (1 - r0));
+		assert(0.0 <= r);
+		return r;
+	}
+}
+double kl_max_fast(double freq, Int N0, Int N) {
+	assert(0 <= freq && freq <= 1);
+	assert(0 <= N0 && N0 <= N);
+	double r0 = (double) N0 / (double) N;
+	if (freq < r0) {
+		double r = freq * log(1.0 / r0)
+				+ (r0 - freq) * log((r0 - freq) / (r0 - r0 * freq))
+				+ (1.0 - r0) * log(1.0 / (1.0 - freq));
+		assert(0.0 <= r);
+		return r;
+	} else {
+		double r = r0 * log(1 / freq)
 				+ (freq - r0) * log((freq - r0) / (freq - freq * r0))
-				+ (1.0 - freq) * log(1.0 / (1.0 - r0));
+				+ (1 - freq) * log(1 / (1 - r0));
+		assert(0.0 <= r);
+		return r;
+	}
 }
 
-double kl(vector<double>& freq_current, vector<Int>& cl, double freq, Int N0,
+double kl(vector<double>& freq_current, vector<Int>& cl, double freq,
+Int N0,
 Int N) {
 	double r0 = (double) N0 / (double) N;
 	double r1 = (double) (N - N0) / (double) N;
@@ -271,7 +300,8 @@ double computePvalue(double kl, Int N) {
 	if (kl <= pow(10, -8))
 		pval = 1.0;
 	else
-		pval = 1.0 - boost::math::cdf(chisq_dist, 2.0 * (double) N * kl);
+		pval = 1.0
+				- boost::math::cdf(chisq_dist, 2.0 * (double) N * kl);
 	return pval;
 }
 // compute a list of thresholds
@@ -286,15 +316,16 @@ void computeThresholds(vector<double>& freq_thrs, Int n, Int N) {
 
 // Frequent Pattern Mining
 void runFPM(vector<vector<double>>& rankn, vector<Int>& fset,
-		vector<double>& freq_current, Int i_prev, Int n, Int size_limit,
-		ofstream& ofs) {
+		vector<double>& freq_current, Int i_prev, Int n,
+		Int size_limit, ofstream& ofs) {
 	Int N = rankn.size();
 	for (Int i = i_prev + 1; i < n; i++) {
 		fset.push_back(i);
 		double freq = computeFreqUpdate(rankn, i, freq_current);
 		if (freq > SIGMA && fset.size() <= size_limit) {
 			if (VERBOSE)
-				cout << "  Frequency of {" << fset << "} = " << freq << endl;
+				cout << "  Frequency of {" << fset << "} = " << freq
+						<< endl;
 			// ofs << fset << " (" << freq << ")" << endl;
 			NUM_PATTERN += 1.0;
 			runFPM(rankn, fset, freq_current, i, n, size_limit, ofs);
@@ -324,8 +355,9 @@ void runFPM(vector<vector<double>>& rankn, vector<Int>& fset,
  *	alpha			: error rate (fixed)
  */
 void runSPM(vector<vector<double>>& rankn, vector<Int>& fset,
-		vector<double>& freq_current, Int i_prev, Int n, Int size_limit,
-		ofstream& ofs, Int N0, set<pair<double, double>, cmp>& freq_pval_list,
+		vector<double>& freq_current, Int i_prev, Int n,
+		Int size_limit, ofstream& ofs, Int N0,
+		set<pair<double, double>, cmp>& freq_pval_list,
 		double alpha) {
 	Int N = rankn.size();
 	for (Int i = i_prev + 1; i < n; i++) {
@@ -334,7 +366,8 @@ void runSPM(vector<vector<double>>& rankn, vector<Int>& fset,
 		if (freq > SIGMA && fset.size() <= size_limit) {
 			NUM_PATTERN += 1.0;
 			if (VERBOSE)
-				cout << "  Frequency of {" << fset << "} = " << freq << endl;
+				cout << "  Frequency of {" << fset << "} = " << freq
+						<< endl;
 			// if (freq < (double)N0 / (double)N) {
 			// double pval = computePvalue(kl_max(freq_current, N0, N), N);
 			double pval = computePvalue(kl_max_fast(freq, N0, N), N);
@@ -350,16 +383,19 @@ void runSPM(vector<vector<double>>& rankn, vector<Int>& fset,
 				ADMISSIBLE =
 						freq_pval_list.empty() ?
 								1e20 :
-								alpha / (*prev(freq_pval_list.end())).second;
+								alpha
+										/ (*prev(freq_pval_list.end())).second;
 			}
 			// }
 			// ofs << fset << " (" << freq << ")" << endl;
 			if (VERBOSE)
-				cout << "  Current freq threshold =    " << SIGMA << endl;
+				cout << "  Current freq threshold =    " << SIGMA
+						<< endl;
 			if (VERBOSE)
-				cout << "  Current admissible number = " << ADMISSIBLE << endl;
-			runSPM(rankn, fset, freq_current, i, n, size_limit, ofs, N0,
-					freq_pval_list, alpha);
+				cout << "  Current admissible number = " << ADMISSIBLE
+						<< endl;
+			runSPM(rankn, fset, freq_current, i, n, size_limit, ofs,
+					N0, freq_pval_list, alpha);
 		}
 		// extract the feature fset.back();
 		// TODO: this is the part it takes the most time.
@@ -370,11 +406,147 @@ void runSPM(vector<vector<double>>& rankn, vector<Int>& fset,
 		fset.pop_back();
 	}
 }
+
+double GetLowerBoundOfPValue(double freq, int N0, int N) {
+	double upperBound = kl_max_fast_upper(freq, N0, N);
+	return computePvalue(upperBound, N);
+}
+
+/**
+ * Initialize a table to store the count of each frequency.
+ * N: number of transactions.
+ * size: size of the table (thus deciding the space efficiency).
+ * @return: thresholds for discretized frequency and
+ *  		the minimal pvalue for each threshold.
+ */
+vector<pair<double, double> > InitializeThresholdTable(int N, int N0,
+		int size, double alpha) {
+	// TODO: the table should be more efficient with inversed.
+	vector<pair<double, double> > thresholds(size);
+	double max_freq = 1.0;
+	// TODO: Current discretization is way too rough.
+	//       Need to find a way to edit the granularity.
+	for (int i = 0; i < size; ++i) {
+		max_freq = max_freq * (N + 1) / (2 * N);
+		thresholds[i].first = max_freq;
+	}
+	for (int i = 0; i < size; ++i) {
+		thresholds[i].second = GetLowerBoundOfPValue(
+				thresholds[i].first, N0, N);
+		if (thresholds[i].second >= alpha) {
+			thresholds.erase(thresholds.begin() + i,
+					thresholds.end());
+			break;
+		}
+	}
+//	printf("The domain of discrete Fr(X) = {0..%d}\n",
+//			thresholds.size());
+//	for (int i = 0; i < thresholds.size(); ++i) {
+//		printf("freq/minp = %.2f/%.6f\n", thresholds[i].first,
+//				thresholds[i].second);
+//	}
+	return thresholds;
+}
+
+/**
+ * It takes the maximum frequency
+ */
+int GetDiscretizedFrequency(vector<pair<double, double> >& thresholds,
+		double freq) {
+	if (freq > thresholds[0].first) {
+//		printf("root\n");
+		return 0;
+	}
+	int i = 0;
+	while (freq < thresholds[i].first && i < thresholds.size()) {
+		++i;
+	}
+	--i;
+	return i;
+}
+/**
+ * It takes the maximum frequency
+ */
+int GetDiscretizedFrequencyInadmissible(vector<pair<double, double> >& thresholds,
+		double freq) {
+	if (freq > thresholds[0].first) {
+//		printf("root\n");
+		return 0;
+	}
+	int i = 0;
+	while (freq < thresholds[i].first && i < thresholds.size()) {
+		++i;
+	}
+	return i;
+}
+
+void printCountTable(vector<int>& freq_count,
+		vector<pair<double, double> >& thresholds) {
+	assert(freq_count.size() == thresholds.size());
+	printf("The domain of discrete Fr(X) = {0..%d}\n",
+			thresholds.size() - 1);
+	for (int i = 0; i < thresholds.size(); ++i) {
+		printf("[%2d] freq, minp, #items = %.2f, %.6f, %4d\n", i,
+				thresholds[i].first, thresholds[i].second,
+				freq_count[i]);
+	}
+}
+
+// TODO: Implement a table to store the count of discretized frequency.
+void runLSSPM(vector<vector<double>>& rankn, vector<Int>& fset,
+		vector<double>& freq_current, Int i_prev, Int n,
+		Int size_limit, ofstream& ofs, Int N0,
+		vector<int>& freq_count,
+		vector<pair<double, double> >& thresholds, int& curr_lambda,
+		double alpha) {
+
+	Int N = rankn.size();
+	for (Int i = i_prev + 1; i < n; i++) {
+		fset.push_back(i);
+		double freq = computeFreqUpdate(rankn, i, freq_current);
+		if (freq > thresholds[curr_lambda].first
+				&& fset.size() <= size_limit) {
+			NUM_PATTERN += 1.0;
+			if (VERBOSE)
+				cout << "  Frequency of {" << fset << "} = " << freq
+						<< endl;
+
+			int disFreq = GetDiscretizedFrequencyInadmissible(thresholds, freq);
+			freq_count[disFreq]++;
+
+			if (freq_count[curr_lambda]
+					* thresholds[curr_lambda].second >= alpha) {
+				--curr_lambda;
+			}
+
+			// }
+			// ofs << fset << " (" << freq << ")" << endl;
+			if (VERBOSE)
+				cout << "  Current freq threshold =    " << SIGMA
+						<< endl;
+			if (VERBOSE)
+				cout << "  Current admissible number = " << ADMISSIBLE
+						<< endl;
+			runLSSPM(rankn, fset, freq_current, i, n, size_limit, ofs,
+					N0, freq_count, thresholds, curr_lambda, alpha);
+		}
+		// extract the feature fset.back();
+		// TODO: this is the part it takes the most time.
+		// ok DFS is better than BrFS i guess.
+		for (Int i = 0; i < N; ++i) {
+			freq_current[i] /= (double) rankn[i][fset.back()];
+		}
+		fset.pop_back();
+	}
+}
+
 // Significant Pattern Mining with Westfall-Young permutation
 void runSPMWY(vector<vector<double>>& rankn, vector<Int>& fset,
-		vector<double>& freq_current, Int i_prev, Int n, Int size_limit,
-		ofstream& ofs, Int N0, set<pair<double, double>, cmp>& freq_pval_list,
-		vector<vector<Int>>& cl_perm, vector<double>& pmin_perm, double alpha) {
+		vector<double>& freq_current, Int i_prev, Int n,
+		Int size_limit, ofstream& ofs, Int N0,
+		set<pair<double, double>, cmp>& freq_pval_list,
+		vector<vector<Int>>& cl_perm, vector<double>& pmin_perm,
+		double alpha) {
 	Int N = rankn.size();
 	for (Int i = i_prev + 1; i < n; i++) {
 		fset.push_back(i);
@@ -382,14 +554,16 @@ void runSPMWY(vector<vector<double>>& rankn, vector<Int>& fset,
 		if (freq > SIGMA && fset.size() <= size_limit) {
 			NUM_PATTERN += 1.0;
 			if (VERBOSE)
-				cout << "  Frequency of {" << fset << "} = " << freq << endl;
+				cout << "  Frequency of {" << fset << "} = " << freq
+						<< endl;
 			double pval = computePvalue(kl_max_fast(freq, N0, N), N);
 			freq_pval_list.insert(make_pair(freq, pval));
 
 			// compute p-values for permutations and estimate the FWER
 			for (Int ip = 0; ip < cl_perm.size(); ++ip) {
 				double p_tmp = computePvalue(
-						kl(freq_current, cl_perm[ip], freq, N0, N), N);
+						kl(freq_current, cl_perm[ip], freq, N0, N),
+						N);
 				if (p_tmp < pmin_perm[ip])
 					pmin_perm[ip] = p_tmp;
 			}
@@ -398,7 +572,8 @@ void runSPMWY(vector<vector<double>>& rankn, vector<Int>& fset,
 				if (x < (*prev(freq_pval_list.end())).second)
 					counter++;
 			}
-			FWER_ESTIMATE = (double) counter / (double) cl_perm.size();
+			FWER_ESTIMATE = (double) counter
+					/ (double) cl_perm.size();
 			// sort(pmin_perm.begin(), pmin_perm.end());
 			// cout << (*prev(freq_pval_list.end())).second << ": ";
 			// for (Int ii = 0; ii < 10; ii++) cout << pmin_perm[ii] << " ";
@@ -421,15 +596,18 @@ void runSPMWY(vector<vector<double>>& rankn, vector<Int>& fset,
 						if (x < (*prev(freq_pval_list.end())).second)
 							counter++;
 					}
-					FWER_ESTIMATE = (double) counter / (double) cl_perm.size();
+					FWER_ESTIMATE = (double) counter
+							/ (double) cl_perm.size();
 				}
 			}
 			if (VERBOSE)
-				cout << "  Current freq threshold =    " << SIGMA << endl;
+				cout << "  Current freq threshold =    " << SIGMA
+						<< endl;
 			if (VERBOSE)
-				cout << "  Current admissible number = " << ADMISSIBLE << endl;
-			runSPMWY(rankn, fset, freq_current, i, n, size_limit, ofs, N0,
-					freq_pval_list, cl_perm, pmin_perm, alpha);
+				cout << "  Current admissible number = " << ADMISSIBLE
+						<< endl;
+			runSPMWY(rankn, fset, freq_current, i, n, size_limit, ofs,
+					N0, freq_pval_list, cl_perm, pmin_perm, alpha);
 		}
 		// extract the feature fset.back();
 		for (Int i = 0; i < N; ++i) {
@@ -440,22 +618,25 @@ void runSPMWY(vector<vector<double>>& rankn, vector<Int>& fset,
 }
 // Frequent Pattern Mining with finding singificant patterns
 void runSPM_sig(vector<vector<double>>& rankn, vector<Int>& fset,
-		vector<double>& freq_current, Int i_prev, Int n, Int size_limit, Int N0,
-		vector<Int>& cl, double alpha_corrected, ofstream& ofs) {
+		vector<double>& freq_current, Int i_prev, Int n,
+		Int size_limit, Int N0, vector<Int>& cl,
+		double alpha_corrected, ofstream& ofs) {
 	Int N = rankn.size();
 	for (Int i = i_prev + 1; i < n; i++) {
 		fset.push_back(i);
 		double freq = computeFreqUpdate(rankn, i, freq_current);
 		if (freq > SIGMA && fset.size() <= size_limit) {
-			double pval = computePvalue(kl(freq_current, cl, freq, N0, N), N);
+			// TODO: Need to calculate pmin first to assess if it is a testable pattern?
+			double pval = computePvalue(
+					kl(freq_current, cl, freq, N0, N), N);
 			// if (VERBOSE) cout << "  corrected p-value of {" << fset << "} = " << pval * (double)num_testable << endl;
 			if (pval < alpha_corrected) {
 				NUM_PATTERN += 1.0;
 				// ofs << fset << " (" << pval * (double)num_testable << ")" << endl;
 				ofs << fset << " (" << pval << ")" << endl;
 			}
-			runSPM_sig(rankn, fset, freq_current, i, n, size_limit, N0, cl,
-					alpha_corrected, ofs);
+			runSPM_sig(rankn, fset, freq_current, i, n, size_limit,
+					N0, cl, alpha_corrected, ofs);
 		}
 		// extract the feature fset.back();
 		for (Int i = 0; i < N; ++i) {
@@ -472,6 +653,7 @@ int main(int argc, char *argv[]) {
 	bool flag_stat = false;
 	bool fpm = false;
 	bool bonferroni = false;
+	bool lscpm = false;
 	char *input_file = NULL;
 	char *input_class_file = NULL;
 	char *output_file = NULL;
@@ -483,12 +665,13 @@ int main(int argc, char *argv[]) {
 
 	Int dim_limit = INT32_MAX;
 
-	// YJ: In order to detect negative correlation, current method needs to add revered rank.
+// YJ: In order to detect negative correlation, current method needs to add revered rank.
 	bool reverse = false;
 
-	// get arguments
+// get arguments
 	char opt;
-	while ((opt = getopt(argc, argv, "i:c:o:t:s:a:k:fvwp:bd:r")) != -1) {
+	while ((opt = getopt(argc, argv, "i:c:o:t:s:a:k:fvwp:bld:r"))
+			!= -1) {
 		switch (opt) {
 		case 'i':
 			input_file = optarg;
@@ -530,6 +713,9 @@ int main(int argc, char *argv[]) {
 		case 'b':
 			bonferroni = true;
 			break;
+		case 'l':
+			lscpm = true;
+			break;
 		case 'd':
 			dim_limit = atoi(optarg);
 			break;
@@ -540,7 +726,8 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (!flag_in) {
-		cerr << "> ERROR: Input file (-i [input_file]) is missing!" << endl;
+		cerr << "> ERROR: Input file (-i [input_file]) is missing!"
+				<< endl;
 		exit(1);
 	}
 	if (!flag_out) {
@@ -551,10 +738,11 @@ int main(int argc, char *argv[]) {
 	}
 	ofstream sfst(stat_file);
 
-	// --------------------------------- //
-	// ---------- Read a file ---------- //
-	// --------------------------------- //
-	cout << "> Reading a database file \"" << input_file << "\" ... " << flush;
+// --------------------------------- //
+// ---------- Read a file ---------- //
+// --------------------------------- //
+	cout << "> Reading a database file \"" << input_file << "\" ... "
+			<< flush;
 	sfst << "> Reading a database file \"" << input_file << "\" ... ";
 	ifstream ifs(input_file);
 	vector<vector<double>> data;
@@ -566,9 +754,10 @@ int main(int argc, char *argv[]) {
 	Int n = data[0].size();
 	Int N0 = 0;
 	if (!fpm) {
-		cout << "> Reading a class file    \"" << input_class_file << "\" ... "
-				<< flush;
-		sfst << "> Reading a class file    \"" << input_class_file << "\" ... ";
+		cout << "> Reading a class file    \"" << input_class_file
+				<< "\" ... " << flush;
+		sfst << "> Reading a class file    \"" << input_class_file
+				<< "\" ... ";
 		ifstream cfs(input_class_file);
 		readClassFromCSV(cfs, cl);
 		cout << "end" << endl << flush;
@@ -590,13 +779,14 @@ int main(int argc, char *argv[]) {
 	cout << "  # features:             " << n << endl << flush;
 	sfst << "  # features:             " << n << endl;
 	if (fpm) {
-		cout << "  frequency threshold:    " << SIGMA << endl << flush;
+		cout << "  frequency threshold:    " << SIGMA << endl
+				<< flush;
 		sfst << "  frequency threshold:    " << SIGMA << endl;
 	}
 
-	// ----------------------------------- //
-	// ---------- Compute ranks ---------- //
-	// ----------------------------------- //
+// ----------------------------------- //
+// ---------- Compute ranks ---------- //
+// ----------------------------------- //
 	vector<vector<Int>> rank;
 	rank = vector<vector<Int>>(N, vector<Int>(n, 0));
 	vector<vector<double>> rankn;
@@ -615,9 +805,9 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	// --------------------------------- //
-	// ---------- Enumeration ---------- //
-	// --------------------------------- //
+// --------------------------------- //
+// ---------- Enumeration ---------- //
+// --------------------------------- //
 	if (VERBOSE) {
 		cout << "> Start enumeration:" << endl << flush;
 	} else {
@@ -639,29 +829,52 @@ int main(int argc, char *argv[]) {
 			cout << "end" << endl << flush;
 			sfst << "end" << endl << flush;
 		}
-		cout << "  # frequent patterns:    " << NUM_PATTERN << endl << flush;
+		cout << "  # frequent patterns:    " << NUM_PATTERN << endl
+				<< flush;
 		sfst << "  # frequent patterns:    " << NUM_PATTERN << endl;
 		cout << "  Running time:           "
-				<< (float) (te - ts) / CLOCKS_PER_SEC << " [sec]" << endl
-				<< flush;
+				<< (float) (te - ts) / CLOCKS_PER_SEC << " [sec]"
+				<< endl << flush;
 		sfst << "  Running time:           "
-				<< (float) (te - ts) / CLOCKS_PER_SEC << " [sec]" << endl;
+				<< (float) (te - ts) / CLOCKS_PER_SEC << " [sec]"
+				<< endl;
 		exit(1);
 	}
 
 	set<pair<double, double>, cmp> freq_pval_list;
-	// freq_pval_list.insert(make_pair(0.0, 1e-20));
+// freq_pval_list.insert(make_pair(0.0, 1e-20));
 	SIGMA = 0.0;
 	ADMISSIBLE = 1e20;
 	ts = clock();
 	double alpha_corrected;
-	if (!WY && !bonferroni) {
+	if (!WY && !bonferroni && !lscpm) {
 		// =====
 		// lamp
 		// =====
 		runSPM(rankn, fset, freq_current, -1, n, size_limit, ofs, N0,
 				freq_pval_list, alpha);
 		alpha_corrected = alpha / NUM_PATTERN;
+	} else if (lscpm) {
+		// =====
+		// Linear Space Continuous Pattern Mining LAMP
+		// =====
+		int GRAN_DISCRETE = 100;
+		vector<pair<double, double>> thresholds =
+				InitializeThresholdTable(N, N0, GRAN_DISCRETE, alpha);
+//		printf("threshold%d\n", thresholds.size());
+		vector<int> count = vector<int>(thresholds.size(), 0);
+		int lambda = thresholds.size() - 1;
+		runLSSPM(rankn, fset, freq_current, -1, n, size_limit, ofs,
+				N0, count, thresholds, lambda, alpha);
+		++lambda;
+		int num_pat = 0;
+		for (int i = 0; i < lambda; ++i) {
+			num_pat += count[i];
+		}
+		NUM_PATTERN = num_pat;
+		alpha_corrected = alpha / NUM_PATTERN;
+		SIGMA = thresholds[lambda].second;
+		printCountTable(count, thresholds);
 	} else if (bonferroni) {
 		// =====
 		// Bonferroni
@@ -685,35 +898,39 @@ int main(int argc, char *argv[]) {
 			seed++;
 		}
 		vector<double> pmin_perm(cl_perm.size(), 1.0);
-		runSPMWY(rankn, fset, freq_current, -1, n, size_limit, ofs, N0,
-				freq_pval_list, cl_perm, pmin_perm, alpha);
+		runSPMWY(rankn, fset, freq_current, -1, n, size_limit, ofs,
+				N0, freq_pval_list, cl_perm, pmin_perm, alpha);
 		sort(pmin_perm.begin(), pmin_perm.end());
 		// cout << pmin_perm << endl;
 		alpha_corrected = pmin_perm[wy_repeat * alpha];
 	}
-	// Int num_testable = NUM_PATTERN;
+// Int num_testable = NUM_PATTERN;
 	te = clock();
 	if (!VERBOSE) {
 		cout << "end" << endl << flush;
 		sfst << "end" << endl << flush;
 	}
-	cout << "  # testable patterns:    " << NUM_PATTERN << endl << flush;
+	cout << "  # testable patterns:    " << NUM_PATTERN << endl
+			<< flush;
 	sfst << "  # testable patterns:    " << NUM_PATTERN << endl;
-	cout << "  Corrected alpha:        " << alpha_corrected << endl << flush;
+	cout << "  Corrected alpha:        " << alpha_corrected << endl
+			<< flush;
 	sfst << "  Corrected alpha:        " << alpha_corrected << endl;
 	cout << "  Frequency threshold:    " << SIGMA << endl << flush;
 	sfst << "  Frequency threshold:    " << SIGMA << endl;
-	cout << "  Running time:           " << (float) (te - ts) / CLOCKS_PER_SEC
-			<< " [sec]" << endl << flush;
-	sfst << "  Running time:           " << (float) (te - ts) / CLOCKS_PER_SEC
-			<< " [sec]" << endl;
-
-	// ------------------------------------------------------------------------- //
-	// ---------- Enumerate significant patterns with corrected alpha ---------- //
-	// ------------------------------------------------------------------------- //
-	cout << "> Run Frequent Pattern Mining with a threshold " << SIGMA << endl
+	cout << "  Running time:           "
+			<< (float) (te - ts) / CLOCKS_PER_SEC << " [sec]" << endl
 			<< flush;
-	sfst << "> Run Frequent Pattern Mining with a threshold " << SIGMA << endl;
+	sfst << "  Running time:           "
+			<< (float) (te - ts) / CLOCKS_PER_SEC << " [sec]" << endl;
+
+// ------------------------------------------------------------------------- //
+// ---------- Enumerate significant patterns with corrected alpha ---------- //
+// ------------------------------------------------------------------------- //
+	cout << "> Run Frequent Pattern Mining with a threshold " << SIGMA
+			<< endl << flush;
+	sfst << "> Run Frequent Pattern Mining with a threshold " << SIGMA
+			<< endl;
 	NUM_PATTERN = 0.0;
 	ts = clock();
 	for (auto&& x : freq_current)
@@ -721,10 +938,11 @@ int main(int argc, char *argv[]) {
 	runSPM_sig(rankn, fset, freq_current, -1, n, size_limit, N0, cl,
 			alpha_corrected, ofs);
 	te = clock();
-	cout << "  # significant patterns: " << NUM_PATTERN << endl << flush;
+	cout << "  # significant patterns: " << NUM_PATTERN << endl
+			<< flush;
 	sfst << "  # significant patterns: " << NUM_PATTERN << endl;
-	cout << "  Running time:           " << (float) (te - ts) / CLOCKS_PER_SEC
-			<< " [sec]" << endl;
-	sfst << "  Running time:           " << (float) (te - ts) / CLOCKS_PER_SEC
-			<< " [sec]" << endl;
+	cout << "  Running time:           "
+			<< (float) (te - ts) / CLOCKS_PER_SEC << " [sec]" << endl;
+	sfst << "  Running time:           "
+			<< (float) (te - ts) / CLOCKS_PER_SEC << " [sec]" << endl;
 }
