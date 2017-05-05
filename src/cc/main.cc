@@ -422,30 +422,34 @@ double GetLowerBoundOfPValue(double freq, int N0, int N) {
 vector<pair<double, double> > InitializeThresholdTable(int N, int N0,
 		int size, double alpha) {
 	// TODO: the table should be more efficient with inversed.
-	vector<pair<double, double> > thresholds(size);
-	double max_freq = 1.0;
+	vector<double> thresholds(size);
+	double max_freq = (double) (N + 1.0) / (double) (2.0 * N);
 	// TODO: Current discretization is way too rough.
 	//       Need to find a way to edit the granularity.
 	for (int i = 0; i < size; ++i) {
-		max_freq = max_freq * (N + 1) / (2 * N);
-		thresholds[i].first = max_freq;
-	}
-	for (int i = 0; i < size; ++i) {
-		thresholds[i].second = GetLowerBoundOfPValue(
-				thresholds[i].first, N0, N);
-		if (thresholds[i].second >= alpha) {
+		max_freq = max_freq * 0.9;
+		thresholds[i] = max_freq;
+		double pbound = GetLowerBoundOfPValue(thresholds[i], N0, N);
+		if (pbound >= alpha) {
 			thresholds.erase(thresholds.begin() + i,
 					thresholds.end());
 			break;
 		}
 	}
-//	printf("The domain of discrete Fr(X) = {0..%d}\n",
-//			thresholds.size());
-//	for (int i = 0; i < thresholds.size(); ++i) {
-//		printf("freq/minp = %.2f/%.6f\n", thresholds[i].first,
-//				thresholds[i].second);
-//	}
-	return thresholds;
+	sort(thresholds.begin(), thresholds.end());
+
+	vector<pair<double, double> > table(thresholds.size());
+	for (int i = 0; i < table.size(); ++i) {
+		table[i].first = thresholds[i];
+		table[i].second = GetLowerBoundOfPValue(table[i].first, N0,
+				N);
+	}
+	printf("The domain of discrete Fr(X) = {0..%d}\n", table.size());
+	for (int i = 0; i < table.size(); ++i) {
+		printf("freq/minp = %.2f/%.6f\n", table[i].first,
+				table[i].second);
+	}
+	return table;
 }
 
 /**
@@ -453,30 +457,42 @@ vector<pair<double, double> > InitializeThresholdTable(int N, int N0,
  */
 int GetDiscretizedFrequency(vector<pair<double, double> >& thresholds,
 		double freq) {
-	if (freq > thresholds[0].first) {
-//		printf("root\n");
-		return 0;
-	}
+	assert(0 <= freq);
+	assert(freq <= 1.0);
 	int i = 0;
-	while (freq < thresholds[i].first && i < thresholds.size()) {
+	while (i < thresholds.size() && freq > thresholds[i].first) {
 		++i;
 	}
-	--i;
+	if (i == thresholds.size()) {
+//		printf("Fr_d(%.2f) = %d\n", freq, i);
+		--i;
+	} else {
+		assert(thresholds[i].first > freq);
+	}
+	assert(0 <= i);
+	assert(i < thresholds.size());
 	return i;
 }
+
 /**
  * It takes the maximum frequency
  */
-int GetDiscretizedFrequencyInadmissible(vector<pair<double, double> >& thresholds,
-		double freq) {
-	if (freq > thresholds[0].first) {
-//		printf("root\n");
-		return 0;
-	}
+int GetDiscretizedFrequencyInadmissible(
+		vector<pair<double, double> >& thresholds, double freq) {
+	assert(0 <= freq);
+	assert(freq <= 1.0);
 	int i = 0;
-	while (freq < thresholds[i].first && i < thresholds.size()) {
+	while (i < thresholds.size() && freq > thresholds[i].first) {
 		++i;
 	}
+	if (i == thresholds.size()) {
+//		printf("Fr_d(%.2f) = %d\n", freq, i);
+		--i;
+	} else {
+		assert(thresholds[i].first > freq);
+	}
+	assert(0 <= i);
+	assert(i < thresholds.size());
 	return i;
 }
 
@@ -486,17 +502,33 @@ void printCountTable(vector<int>& freq_count,
 	printf("The domain of discrete Fr(X) = {0..%d}\n",
 			thresholds.size() - 1);
 	for (int i = 0; i < thresholds.size(); ++i) {
-		printf("[%2d] freq, minp, #items = %.2f, %.6f, %4d\n", i,
-				thresholds[i].first, thresholds[i].second,
-				freq_count[i]);
+		if (i == thresholds.size() - 1) {
+			printf(
+					"[%2d] freq = %.2f, minp = %.6f, #>items = %4d (accum = %4d)\n",
+					i, thresholds[i].first, thresholds[i].second,
+					freq_count[i], freq_count[i]);
+		} else {
+			printf(
+					"[%2d] freq = %.2f, minp = %.6f, #>items = %4d (accum = %4d)\n",
+					i, thresholds[i].first, thresholds[i].second,
+					freq_count[i], freq_count[i] - freq_count[i + 1]);
+		}
 	}
 }
+
+// TODO: not sure what it is doing...
+void IncCsAccum(vector<int>* freq_count, int disFreq, int lambda) {
+	assert(0 <= disFreq);
+	assert(disFreq < freq_count->size());
+	for (int i = 0; i < disFreq; i++) {
+		freq_count->operator [](i)++;}
+	}
 
 // TODO: Implement a table to store the count of discretized frequency.
 void runLSSPM(vector<vector<double>>& rankn, vector<Int>& fset,
 		vector<double>& freq_current, Int i_prev, Int n,
 		Int size_limit, ofstream& ofs, Int N0,
-		vector<int>& freq_count,
+		vector<int>* freq_count,
 		vector<pair<double, double> >& thresholds, int& curr_lambda,
 		double alpha) {
 
@@ -504,19 +536,19 @@ void runLSSPM(vector<vector<double>>& rankn, vector<Int>& fset,
 	for (Int i = i_prev + 1; i < n; i++) {
 		fset.push_back(i);
 		double freq = computeFreqUpdate(rankn, i, freq_current);
-		if (freq > thresholds[curr_lambda].first
-				&& fset.size() <= size_limit) {
+		int disFreq = GetDiscretizedFrequency(thresholds, freq);
+		if (disFreq > curr_lambda && fset.size() <= size_limit) {
 			NUM_PATTERN += 1.0;
 			if (VERBOSE)
 				cout << "  Frequency of {" << fset << "} = " << freq
 						<< endl;
 
-			int disFreq = GetDiscretizedFrequencyInadmissible(thresholds, freq);
-			freq_count[disFreq]++;
+			IncCsAccum(freq_count, disFreq, curr_lambda);
 
-			if (freq_count[curr_lambda]
+			if (freq_count->operator [](curr_lambda)
 					* thresholds[curr_lambda].second >= alpha) {
-				--curr_lambda;
+				++curr_lambda;
+				assert(curr_lambda < thresholds.size());
 			}
 
 			// }
@@ -862,19 +894,20 @@ int main(int argc, char *argv[]) {
 		vector<pair<double, double>> thresholds =
 				InitializeThresholdTable(N, N0, GRAN_DISCRETE, alpha);
 //		printf("threshold%d\n", thresholds.size());
-		vector<int> count = vector<int>(thresholds.size(), 0);
-		int lambda = thresholds.size() - 1;
+		vector<int>* count = new vector<int>(thresholds.size(), 0);
+		int lambda = 0;
 		runLSSPM(rankn, fset, freq_current, -1, n, size_limit, ofs,
 				N0, count, thresholds, lambda, alpha);
-		++lambda;
-		int num_pat = 0;
-		for (int i = 0; i < lambda; ++i) {
-			num_pat += count[i];
-		}
+//		++lambda;
+		int num_pat = count->operator [](lambda);
+//		for (int i = 0; i < lambda; ++i) {
+//			num_pat += count->operator [](i);
+//		}
 		NUM_PATTERN = num_pat;
 		alpha_corrected = alpha / NUM_PATTERN;
-		SIGMA = thresholds[lambda].second;
-		printCountTable(count, thresholds);
+		SIGMA = thresholds[lambda].first;
+		printCountTable(*count, thresholds);
+		delete count;
 	} else if (bonferroni) {
 		// =====
 		// Bonferroni
