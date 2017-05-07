@@ -11,6 +11,7 @@
 #include <iomanip>
 #include <set>
 #include <cstdint>
+#include <assert.h>
 #include <unistd.h>
 #include <boost/math/distributions/chi_squared.hpp>
 
@@ -420,14 +421,14 @@ double GetLowerBoundOfPValue(double freq, int N0, int N) {
  *  		the minimal pvalue for each threshold.
  */
 vector<pair<double, double> > InitializeThresholdTable(int N, int N0,
-		int size, double alpha) {
+		int size, double alpha, double thre_ratio) {
 	// TODO: the table should be more efficient with inversed.
 	vector<double> thresholds(size);
 	double max_freq = (double) (N + 1.0) / (double) (2.0 * N);
 	// TODO: Current discretization is way too rough.
 	//       Need to find a way to edit the granularity.
 	for (int i = 0; i < size; ++i) {
-		max_freq = max_freq * 0.9;
+		max_freq = max_freq * thre_ratio;
 		thresholds[i] = max_freq;
 		double pbound = GetLowerBoundOfPValue(thresholds[i], N0, N);
 		if (pbound >= alpha) {
@@ -686,6 +687,7 @@ int main(int argc, char *argv[]) {
 	bool fpm = false;
 	bool bonferroni = false;
 	bool lscpm = false;
+	double thre_ratio = 0.9;
 	char *input_file = NULL;
 	char *input_class_file = NULL;
 	char *output_file = NULL;
@@ -702,7 +704,7 @@ int main(int argc, char *argv[]) {
 
 // get arguments
 	char opt;
-	while ((opt = getopt(argc, argv, "i:c:o:t:s:a:k:fvwp:bld:r"))
+	while ((opt = getopt(argc, argv, "i:c:o:t:s:a:k:fvwp:bl:d:r"))
 			!= -1) {
 		switch (opt) {
 		case 'i':
@@ -747,6 +749,7 @@ int main(int argc, char *argv[]) {
 			break;
 		case 'l':
 			lscpm = true;
+			thre_ratio = atof(optarg);
 			break;
 		case 'd':
 			dim_limit = atoi(optarg);
@@ -890,9 +893,9 @@ int main(int argc, char *argv[]) {
 		// =====
 		// Linear Space Continuous Pattern Mining LAMP
 		// =====
-		int GRAN_DISCRETE = 100;
+		int GRAN_DISCRETE = 1000;
 		vector<pair<double, double>> thresholds =
-				InitializeThresholdTable(N, N0, GRAN_DISCRETE, alpha);
+				InitializeThresholdTable(N, N0, GRAN_DISCRETE, alpha, thre_ratio);
 //		printf("threshold%d\n", thresholds.size());
 		vector<int>* count = new vector<int>(thresholds.size(), 0);
 		int lambda = 0;
@@ -905,7 +908,7 @@ int main(int argc, char *argv[]) {
 //		}
 		NUM_PATTERN = num_pat;
 		alpha_corrected = alpha / NUM_PATTERN;
-		SIGMA = thresholds[lambda].first;
+		SIGMA = thresholds[lambda - 1].first;
 		printCountTable(*count, thresholds);
 		delete count;
 	} else if (bonferroni) {
@@ -978,4 +981,6 @@ int main(int argc, char *argv[]) {
 			<< (float) (te - ts) / CLOCKS_PER_SEC << " [sec]" << endl;
 	sfst << "  Running time:           "
 			<< (float) (te - ts) / CLOCKS_PER_SEC << " [sec]" << endl;
+
+	exit(0);
 }
