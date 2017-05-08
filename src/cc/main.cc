@@ -74,6 +74,7 @@ ostream &operator<<(ostream& out, const set<T>& vec) {
 // read a database file
 void readFromCSV(ifstream& ifs, vector<vector<double>>& data) {
 	string line;
+	vector<vector<double>> tdata;
 	while (getline(ifs, line)) {
 		stringstream lineStream(line);
 		string cell;
@@ -81,7 +82,20 @@ void readFromCSV(ifstream& ifs, vector<vector<double>>& data) {
 		while (getline(lineStream, cell, ',')) {
 			tmp.push_back(stod(cell));
 		}
-		data.push_back(tmp);
+		tdata.push_back(tmp);
+	}
+
+	// TODO: cache efficient transposition
+	int nTrans = tdata.size();
+	int nFeatures = tdata[0].size();
+	data.resize(nFeatures);
+	for (int f = 0; f < nFeatures; ++f) {
+		data[f].resize(nTrans);
+	}
+	for (int t = 0; t < nTrans; ++t) {
+		for (int f = 0; f < nFeatures; ++f) {
+			data[f][t] = tdata[t][f];
+		}
 	}
 }
 
@@ -137,11 +151,11 @@ double computeFreq(vector<vector<Int>>& rank, vector<Int>& fset,
 // compute frequency using the previous result
 double computeFreqUpdate(vector<vector<double>>& rankn, Int fnew,
 		vector<double>& freq_current) {
-	Int N = rankn.size();
+	Int N = rankn[0].size();
 	double freq = 0.0;
 	// if (fset.size() == 0) return 1.0;
 	for (Int i = 0; i < N; ++i) {
-		freq_current[i] *= (double) rankn[i][fnew];
+		freq_current[i] *= (double) rankn[fnew][i];
 		freq += freq_current[i];
 	}
 	freq /= (double) N;
@@ -319,7 +333,7 @@ void computeThresholds(vector<double>& freq_thrs, Int n, Int N) {
 void runFPM(vector<vector<double>>& rankn, vector<Int>& fset,
 		vector<double>& freq_current, Int i_prev, Int n,
 		Int size_limit, ofstream& ofs) {
-	Int N = rankn.size();
+	Int N = rankn[0].size();
 	for (Int i = i_prev + 1; i < n; i++) {
 		fset.push_back(i);
 		double freq = computeFreqUpdate(rankn, i, freq_current);
@@ -360,7 +374,7 @@ void runSPM(vector<vector<double>>& rankn, vector<Int>& fset,
 		Int size_limit, ofstream& ofs, Int N0,
 		set<pair<double, double>, cmp>& freq_pval_list,
 		double alpha) {
-	Int N = rankn.size();
+	Int N = rankn[0].size();
 	for (Int i = i_prev + 1; i < n; i++) {
 		fset.push_back(i);
 		double freq = computeFreqUpdate(rankn, i, freq_current);
@@ -402,7 +416,7 @@ void runSPM(vector<vector<double>>& rankn, vector<Int>& fset,
 		// TODO: this is the part it takes the most time.
 		// ok DFS is better than BrFS i guess.
 		for (Int i = 0; i < N; ++i) {
-			freq_current[i] /= (double) rankn[i][fset.back()];
+			freq_current[i] /= (double) rankn[fset.back()][i];
 		}
 		fset.pop_back();
 	}
@@ -533,7 +547,7 @@ void runLSSPM(vector<vector<double>>& rankn, vector<Int>& fset,
 		vector<pair<double, double> >& thresholds, int& curr_lambda,
 		double alpha) {
 
-	Int N = rankn.size();
+	Int N = rankn[0].size();
 	for (Int i = i_prev + 1; i < n; i++) {
 		fset.push_back(i);
 		double freq = computeFreqUpdate(rankn, i, freq_current);
@@ -567,7 +581,7 @@ void runLSSPM(vector<vector<double>>& rankn, vector<Int>& fset,
 		// TODO: this is the part it takes the most time.
 		// ok DFS is better than BrFS i guess.
 		for (Int i = 0; i < N; ++i) {
-			freq_current[i] /= (double) rankn[i][fset.back()];
+			freq_current[i] /= (double) rankn[fset.back()][i];
 		}
 		fset.pop_back();
 	}
@@ -580,6 +594,7 @@ void runSPMWY(vector<vector<double>>& rankn, vector<Int>& fset,
 		set<pair<double, double>, cmp>& freq_pval_list,
 		vector<vector<Int>>& cl_perm, vector<double>& pmin_perm,
 		double alpha) {
+	assert(false && "rankn not calced yet");
 	Int N = rankn.size();
 	for (Int i = i_prev + 1; i < n; i++) {
 		fset.push_back(i);
@@ -654,7 +669,7 @@ void runSPM_sig(vector<vector<double>>& rankn, vector<Int>& fset,
 		vector<double>& freq_current, Int i_prev, Int n,
 		Int size_limit, Int N0, vector<Int>& cl,
 		double alpha_corrected, ofstream& ofs) {
-	Int N = rankn.size();
+	Int N = rankn[0].size();
 	for (Int i = i_prev + 1; i < n; i++) {
 		fset.push_back(i);
 		double freq = computeFreqUpdate(rankn, i, freq_current);
@@ -673,7 +688,7 @@ void runSPM_sig(vector<vector<double>>& rankn, vector<Int>& fset,
 		}
 		// extract the feature fset.back();
 		for (Int i = 0; i < N; ++i) {
-			freq_current[i] /= (double) rankn[i][fset.back()];
+			freq_current[i] /= (double) rankn[fset.back()][i];
 		}
 		fset.pop_back();
 	}
@@ -780,13 +795,15 @@ int main(int argc, char *argv[]) {
 			<< flush;
 	sfst << "> Reading a database file \"" << input_file << "\" ... ";
 	ifstream ifs(input_file);
+	assert(ifs.is_open());
 	vector<vector<double>> data;
 	vector<Int> cl;
-	readFromCSV(ifs, data, dim_limit, reverse);
+	readFromCSV(ifs, data);
+//	readFromCSV(ifs, data, dim_limit, reverse);
 	cout << "end" << endl << flush;
 	sfst << "end" << endl;
-	Int N = data.size();
-	Int n = data[0].size();
+	Int n = data.size();
+	Int N = data[0].size();
 	Int N0 = 0;
 	if (!fpm) {
 		cout << "> Reading a class file    \"" << input_class_file
@@ -794,6 +811,7 @@ int main(int argc, char *argv[]) {
 		sfst << "> Reading a class file    \"" << input_class_file
 				<< "\" ... ";
 		ifstream cfs(input_class_file);
+		assert(cfs.is_open());
 		readClassFromCSV(cfs, cl);
 		cout << "end" << endl << flush;
 		sfst << "end" << endl;
@@ -823,9 +841,9 @@ int main(int argc, char *argv[]) {
 // ---------- Compute ranks ---------- //
 // ----------------------------------- //
 	vector<vector<Int>> rank;
-	rank = vector<vector<Int>>(N, vector<Int>(n, 0));
+	rank = vector<vector<Int>>(n, vector<Int>(N, 0));
 	vector<vector<double>> rankn;
-	rankn = vector<vector<double>>(N, vector<double>(n, 0.0));
+	rankn = vector<vector<double>>(n, vector<double>(N, 0.0));
 	vector<size_t> idx(N);
 	for (Int j = 0; j < n; ++j) {
 		// initialize index vector
@@ -833,10 +851,10 @@ int main(int argc, char *argv[]) {
 		IDX_FEATURE = j;
 		// sort indexes based on comparing values in v
 		sort(idx.begin(), idx.end(),
-				[&data](Int i1, Int i2) {return data[i1][IDX_FEATURE] < data[i2][IDX_FEATURE];});
+				[&data](Int i1, Int i2) {return data[IDX_FEATURE][i1] < data[IDX_FEATURE][i2];});
 		for (Int i = 0; i < N; i++) {
-			rank[i][j] = idx[i] + 1;
-			rankn[i][j] = (double) rank[i][j] / (double) N;
+			rank[j][i] = idx[i] + 1;
+			rankn[j][i] = (double) rank[j][i] / (double) N;
 		}
 	}
 
