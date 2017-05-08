@@ -920,12 +920,14 @@ int main(int argc, char *argv[]) {
 		runLSSPM(rankn, fset, freq_current, -1, n, size_limit, ofs,
 				N0, count, thresholds, lambda, alpha);
 //		++lambda;
-		int num_pat = count->operator [](lambda);
+//		--lambda;
+		assert(lambda > 0);
+		int num_pat = count->operator [](lambda - 1);
 //		for (int i = 0; i < lambda; ++i) {
 //			num_pat += count->operator [](i);
 //		}
 		NUM_PATTERN = num_pat;
-		alpha_corrected = alpha / NUM_PATTERN;
+		alpha_corrected = alpha / num_pat;
 		SIGMA = thresholds[lambda - 1].first;
 		printCountTable(*count, thresholds);
 		delete count;
