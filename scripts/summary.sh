@@ -30,10 +30,11 @@ do
     cat $result | awk -f ./parse.awk >> $summary
 done
 
-
-Rscript --vanilla plot_summary.R ${summary}
+cd ../src/R
+Rscript --vanilla plot_summary.R ../../scripts/${summary}
+cd ../../scripts
 
 d=`date`
-git stage ${summary} ${summary}.pdf
+git stage ${summary} ${summary}.pdf ../src/R/.RData
 git commit -m "$d pdf autocommitted: $summary"
-git push
+#git push
