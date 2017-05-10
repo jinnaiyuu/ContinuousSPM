@@ -1,6 +1,8 @@
 #!/bin/bash
 #$ -cwd
 #$ -S /bin/bash
+#$ -m e
+#$ -M yuu.jinnai@riken.jp
 PATH=$PATH:/home/hal9000/library/bin
 export PATH
 LIBRARY_PATH=$LIBRARY_PATH:/home/hal9000/library/lib

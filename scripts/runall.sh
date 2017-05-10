@@ -4,13 +4,14 @@ testsummary () {
 #    vsamples="100 1000 10000 100000"
 #    vfeatures=20
     vsamples=200
-#    vfeatures="10 50 100 200"
-    vfeatures="10"
-#    rs="0.1 0.5"
-    rs="0.1"
+    vfeatures="10 50 100"
+#    vfeatures="10"
+    rs="0.1 0.5"
+#    rs="0.1"
     jids=""
     results=""
-    summary=../results/summary/mahito.a5
+    method="jinnai-0.95"
+    summary=../results/summary/${method}.a5
     for samples in $vsamples
     do
 	for features in $vfeatures
@@ -18,8 +19,8 @@ testsummary () {
 	    for r0 in $rs
 	    do
 		instance="synth_${samples}_${features}_${r0}"
-		RESULT=../results/$instance.mahito.a5.stat
-		id=`qsub -v inst=$instance -e "../results.$instance.mahito.a5.e" -o "$RESULT"  run-mahito.sh | awk '{print $3}'`
+		RESULT=../results/$instance.${method}.a5.stat
+		id=`qsub -v inst=$instance,method=${method} -e "../results.$instance.${method}.a5.e" -o "$RESULT"  run.sh | awk '{print $3}'`
 		jids="$jids,$id"
 		results="${results} ${RESULT}"
 		done

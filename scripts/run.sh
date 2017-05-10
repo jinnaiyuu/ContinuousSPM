@@ -14,9 +14,14 @@ export LD_LIBRARY_PATH
 
 # TODO: choose which data to tes
 cd ../src/cc
+INSTDIR=../../instances
 
-#echo "./pmc -l -i ../R/readydata/$inst.data -c ../R/readydata/$inst.class -o ../R/results/$inst.yuu.results -a 0.05"
-./pmc.opt -l $thre -i ../R/readydata/$inst.data -c ../R/readydata/$inst.class -o ../../results/$inst.yuu-$thre.a5.results -a 0.05
-#./pmc    -i ../R/readydata/$inst.data -c ../R/readydata/$inst.class -o ../R/results/$inst.mahito.results -a 0.05
+if [ $method = "mahito" ]
+then
+    ./pmc.opt -i $INSTDIR/$inst.data -c $INSTDIR/$inst.class -o ../../results/$inst.${method}.a5.patterns -a 0.05
+else
+    thre=`echo $method | awk -F '-' '{print $2}'`
+    ./pmc.opt -l $thre -i $INSTDIR/$inst.data -c $INSTDIR/$inst.class -o ../../results/$inst.${method}.a5.patterns -a 0.05    
+fi
 
 
