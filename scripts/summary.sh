@@ -1,6 +1,8 @@
 #!/bin/bash
 #$ -cwd
 #$ -S /bin/bash
+#$ -m e
+#$ -M yuu.jinnai@riken.jp
 PATH=$PATH:/home/hal9000/library/bin
 export PATH
 LIBRARY_PATH=$LIBRARY_PATH:/home/hal9000/library/lib
@@ -35,6 +37,7 @@ Rscript --vanilla plot_summary.R ../../scripts/${summary}
 cd ../../scripts
 
 d=`date`
-git stage ${summary} ${summary}.pdf ../src/R/.RData
+#git stage ${summary} ${summary}.pdf ../src/R/.RData
+git add -u
 git commit -m "$d pdf autocommitted: $summary"
 #git push
