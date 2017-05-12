@@ -1,3 +1,8 @@
+# Utils
+pick <- function(condition){
+  function(d) d %>% filter_(condition)
+}
+
 ## --------------------------------------- ##
 ## ---------- run three methods ---------- ##
 ## --------------------------------------- ##
