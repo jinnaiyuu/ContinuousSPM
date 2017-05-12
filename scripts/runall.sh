@@ -1,10 +1,10 @@
 #!/bin/bash
 
 testsummary () {
-#    vsamples="100 1000 10000 100000"
-#    vfeatures=20
-    vsamples=200
-    vfeatures="10 50 100"
+    vsamples="100 1000 10000 100000"
+    vfeatures=20
+#    vsamples=200
+#    vfeatures="10 50 100"
 #    vfeatures="10"
     rs="0.1 0.5"
 #    rs="0.1"

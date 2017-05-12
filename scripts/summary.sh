@@ -37,6 +37,7 @@ Rscript --vanilla plot_summary.R ../../scripts/${summary}
 cd ../../scripts
 
 d=`date`
-git stage ${summary} ${summary}.pdf ../src/R/.RData
+#git stage ${summary} ${summary}.pdf ../src/R/.RData
+git add -u
 git commit -m "$d pdf autocommitted: $summary"
 #git push
