@@ -26,7 +26,7 @@ run.script <- function(N = 200, n = 20, r0 = 0.5, data.name = "material", base.d
   } else if (data.name == "synth") {
      ## make a synthetic dataset with (N, n, r0)
      cat("  > Generate synthetic data\n")
-     data.name <- paste0(data.name, "_N=", N, "_n=", n, "_r0=", r0)
+     data.name <- paste0(data.name, "_", N, "_", n, "_", r0)
      file.path.data <- paste0(base.dir, data.name, ".data")
      file.path.class <- paste0(base.dir, data.name, ".class")
      
