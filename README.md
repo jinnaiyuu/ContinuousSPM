@@ -1,8 +1,8 @@
-# Modified by Yuu Jinnai 2017
+### Modified by Yuu Jinnai 2017
 This code extends the work by Mahito Sugiyama and Karsten Borgwadt.
 
 
-# Original README by 2017 authors.
+### Original README by 2017 authors.
 # KDD2017 codes
 Codes to reproduce results of our KDD2017 paper:
 **Significant Pattern Mining on Continuous Variables** by Mahito Sugiyama (Osaka Univ.) and Karsten Borgwadt (ETH Zürich).

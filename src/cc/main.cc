@@ -422,6 +422,76 @@ void runSPM(vector<vector<double>>& rankn, vector<Int>& fset,
 	}
 }
 
+/**
+ * Find patterns with K lowest p-values.
+ * cl := class labels.
+ * pval_pat_list := pair of pvalue and patterns.
+ */
+void runTopK(vector<vector<double>>& rankn, vector<Int>& fset,
+		vector<double>& freq_current, Int i_prev, Int n,
+		Int size_limit, ofstream& ofs, Int N0,
+		set<pair<double, vector<Int>>>& pval_pat_list,
+vector<Int>& cl, double alpha, int k) {
+	Int N = rankn[0].size();
+	double threPval = 100.0;
+	if (!pval_pat_list.empty()) {
+		threPval = pval_pat_list.rbegin()->first; // threPval is the maximum pvalue in the topK
+	}
+//	printf("thre = %.2f\n", threPval);
+	for (Int i = i_prev + 1; i < n; i++) {
+		fset.push_back(i);
+		double freq = computeFreqUpdate(rankn, i, freq_current);
+		if (fset.size() <= size_limit) {
+			NUM_PATTERN += 1.0;
+			if (VERBOSE)
+			cout << "  Frequency of {" << fset << "} = " << freq
+			<< endl;
+			// if (freq < (double)N0 / (double)N) {
+			// double pval = computePvalue(kl_max(freq_current, N0, N), N);
+			double minpval = computePvalue(kl_max_fast(freq, N0, N),
+			N);
+
+			// If minpvalue is higher than the threshold pvalue, then
+			// the pattern and every superpatterns is not in Top-K.
+			if (minpval <= threPval) {
+				// If minpvalue is lower or equal to threshold
+				double pval = computePvalue(
+				kl(freq_current, cl, freq, N0, N), N);
+//				for (int j = 0; j < fset.size(); ++j) {
+//					printf("%d ", fset[j]);
+//				}
+//				printf("freq_current = %.2f, kl = %.2f, pval = %.2f\n", freq_current, kl, pval);
+
+				// If pval is lower or equal to the threshold pvalue, then
+				// add pval to the top-K patterns.
+				if (pval <= threPval) {
+//					printf("pval = %.2f <= %.2f\n", pval, threPval);
+
+					// TODO: need to keep the size of the list to K
+					vector<Int> copy = fset;
+					pval_pat_list.insert(make_pair(pval, copy));
+					if (pval_pat_list.size() > k) {
+//						printf(">k items found\n");
+						set<pair<double, vector<Int>>>::iterator it = pval_pat_list.end();
+						--it;
+						pval_pat_list.erase(it);
+					}
+				}
+				// Explore child nodes because minpvalue is lower than the threshold.
+				runTopK(rankn, fset, freq_current, i, n, size_limit, ofs,
+				N0, pval_pat_list, cl, alpha, k);
+			}
+		}
+		// extract the feature fset.back();
+		// TODO: this is the part it takes the most time.
+		// ok DFS is better than BrFS i guess.
+		for (Int i = 0; i < N; ++i) {
+			freq_current[i] /= (double) rankn[fset.back()][i];
+		}
+		fset.pop_back();
+	}
+}
+
 double GetLowerBoundOfPValue(double freq, int N0, int N) {
 	double upperBound = kl_max_fast_upper(freq, N0, N);
 	return computePvalue(upperBound, N);
@@ -702,6 +772,8 @@ int main(int argc, char *argv[]) {
 	bool fpm = false;
 	bool bonferroni = false;
 	bool lscpm = false;
+	bool topk = false;
+	int k = 30;
 	double thre_ratio = 0.9;
 	char *input_file = NULL;
 	char *input_class_file = NULL;
@@ -719,7 +791,7 @@ int main(int argc, char *argv[]) {
 
 // get arguments
 	char opt;
-	while ((opt = getopt(argc, argv, "i:c:o:t:s:a:k:fvwp:bl:d:r"))
+	while ((opt = getopt(argc, argv, "i:c:o:t:s:a:k:fvwp:bl:d:rz:"))
 			!= -1) {
 		switch (opt) {
 		case 'i':
@@ -768,6 +840,10 @@ int main(int argc, char *argv[]) {
 			break;
 		case 'd':
 			dim_limit = atoi(optarg);
+			break;
+		case 'z':
+			topk = true;
+			k = atoi(optarg);
 			break;
 		case 'r':
 			reverse = true;
@@ -894,12 +970,32 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 
+	if (topk) {
+		set<pair<double, vector<Int>>> pval_pat_list;
+		runTopK(rankn, fset, freq_current, -1, n, size_limit, ofs, N0,
+				pval_pat_list, cl, alpha, k);
+		printf("Top-%d patterns found\n", pval_pat_list.size());
+		for (set<pair<double, vector<Int>>>::iterator it =
+				pval_pat_list.begin(); it != pval_pat_list.end();
+				++it) {
+			printf("%.6f ", it->first);
+			for (int i = 0; i < it->second.size(); ++i) {
+				printf("%d ", it->second[i]);
+			}
+			printf("\n");
+		}
+
+		exit(0);
+	}
+
 	set<pair<double, double>, cmp> freq_pval_list;
 // freq_pval_list.insert(make_pair(0.0, 1e-20));
 	SIGMA = 0.0;
 	ADMISSIBLE = 1e20;
 	ts = clock();
 	double alpha_corrected;
+	// TODO: awful branching...
+
 	if (!WY && !bonferroni && !lscpm) {
 		// =====
 		// lamp
@@ -913,7 +1009,8 @@ int main(int argc, char *argv[]) {
 		// =====
 		int GRAN_DISCRETE = 1000;
 		vector<pair<double, double>> thresholds =
-				InitializeThresholdTable(N, N0, GRAN_DISCRETE, alpha, thre_ratio);
+				InitializeThresholdTable(N, N0, GRAN_DISCRETE, alpha,
+						thre_ratio);
 //		printf("threshold%d\n", thresholds.size());
 		vector<int>* count = new vector<int>(thresholds.size(), 0);
 		int lambda = 0;
